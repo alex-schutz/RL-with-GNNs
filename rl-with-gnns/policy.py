@@ -97,8 +97,8 @@ class GraphActorCriticProcessor(nn.Module):
         # Process the graph with the graph network
         node_embedding = self.processor(
             node_fts=batch.x,
-            edge_attr=batch.edge_attr,
             edge_index=batch.edge_index,
+            edge_attr=batch.edge_attr,
             batch=batch.batch,
         )
 
