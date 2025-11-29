@@ -3,15 +3,14 @@
 import numpy as np
 import torch as th
 import time
-
-from stable_baselines3.common.vec_env.base_vec_env import VecEnv
+import gymnasium as gym
 
 from sb3_contrib import MaskablePPO
-
-from policy import MaskableGraphActorCriticPolicy
-from util import make_train_env, make_eval_env
 from sb3_contrib.common.maskable.callbacks import MaskableEvalCallback
 from sb3_contrib.common.maskable.evaluation import evaluate_policy
+from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecEnv
+
+from policy import MaskableGraphActorCriticPolicy
 from util import get_clean_kwargs, change_obs_action_space
 
 
@@ -75,6 +74,10 @@ def train_ppo(
 def main():
     config = {
         "seed": 42,
+        "env_name": "GraphEnv-v0",
+        "n_eval_episodes": 10,
+        "eval_freq": 10000,
+        "num_envs": 4,
         "policy_kwargs": {
             "network": "GAT",
             "num_layers": 2,
@@ -92,16 +95,20 @@ def main():
     th.manual_seed(config["seed"])
     np.random.seed(config["seed"])
 
-    print("Constructing train env")
-    train_env = make_train_env(config)
-    print("Constructing val env")
-    val_env = make_eval_env(config, "val")
-    print("Constructing test env")
-    test_env = make_eval_env(config, "test")
+    def make_env(split, idx):
+        def _init():
+            return gym.make(config["env_name"], split=split, seed=config["seed"] + idx)
 
-    # Get the spec attribute from the first environment in vec_env
-    env_spec = train_env.get_attr("graph_spec")[0]
-    config["policy_kwargs"]["graph_spec"] = env_spec  # type: ignore
+        return _init
+
+    num_envs = config.get("num_envs", 1)
+
+    print("Constructing train env")
+    train_env = VecMonitor(DummyVecEnv([make_env("train", i) for i in range(num_envs)]))
+    print("Constructing val env")
+    val_env = VecMonitor(DummyVecEnv([make_env("val", i) for i in range(num_envs)]))
+    print("Constructing test env")
+    test_env = VecMonitor(DummyVecEnv([make_env("test", i) for i in range(num_envs)]))
 
     print("Starting PPO training...")
     # Train the policy using PPO
