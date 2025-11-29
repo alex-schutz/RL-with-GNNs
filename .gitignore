@@ -1,0 +1,74 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+downloads/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+wheelhouse/
+*.egg
+.installed.cfg
+
+# Virtualenvs
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+.venv/
+uv/ 
+uv.lock
+
+# Conda / Anaconda
+anaconda3/
+.conda/
+conda-meta/
+.envs/
+.condarc
+conda-lock.yaml
+
+# pip
+pip-log.txt
+pip-delete-this-directory.txt
+pip-selfcheck.json
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Type checkers / caches
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Jupyter
+.ipynb_checkpoints
+
+# IDEs / editors
+.vscode/
+.idea/
+*.swp
+*~ 
+
+# Logs and runtime files
+*.log
+*.pid
+*.sock
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# dotenv / secrets
+.env
