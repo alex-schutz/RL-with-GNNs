@@ -12,10 +12,8 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 from typing import Callable, Any
 
-from gnarl.network.gnns import get_network_class
-from gnarl.util.graph_format import (
-    matrix_features_to_batch,
-)
+from gnns import get_network_class
+from util import matrix_features_to_batch
 
 
 class MatrixObservationToGraph(BaseFeaturesExtractor):
@@ -50,7 +48,9 @@ class GraphActorCriticProcessor(nn.Module):
     It receives as input the features extracted by the features extractor.
 
     Args:
-        embed_dim (int): Dimension of the embedding space.
+        node_dim (int): Dimension of the node feature space.
+        edge_dim (int): Dimension of the edge feature space.
+        embed_dim (int): Dimension of the graph embedding space.
         pooling_type (str): Pooling type to use for graph embedding computation
             (options: "max", "mean", "sum")
         network_kwargs (dict, optional): Additional arguments to pass to the graph network.
@@ -58,6 +58,8 @@ class GraphActorCriticProcessor(nn.Module):
 
     def __init__(
         self,
+        node_dim: int,
+        edge_dim: int,
         embed_dim: int = 64,
         pooling_type: str = "max",
         network_kwargs: dict = None,
@@ -69,7 +71,7 @@ class GraphActorCriticProcessor(nn.Module):
         super().__init__()
         # IMPORTANT:
         # Save output dimensions, used to create the distributions
-        self.latent_dim_vf = embed_dim
+        self.latent_dim_vf = node_dim
         self.latent_dim_pi = 0  # unused
         self.embed_dim = embed_dim
         self.pooling_type = pooling_type
@@ -80,9 +82,9 @@ class GraphActorCriticProcessor(nn.Module):
         processor_class = get_network_class(network_kwargs["network"])
 
         self.processor = processor_class(
-            in_channels=embed_dim,
+            in_channels=node_dim,
             out_channels=embed_dim,
-            edge_dim=embed_dim,
+            edge_dim=edge_dim,
             **network_kwargs,
         )
 
@@ -109,7 +111,7 @@ class GraphActorCriticProcessor(nn.Module):
 
         return node_embedding, graph_embedding
 
-    def forward(self, batch: Batch) -> tuple[th.Tensor, th.Tensor]:
+    def forward(self, batch: Batch) -> tuple[Batch, th.Tensor]:
         """
         Forward pass of the graph processor.
 
@@ -272,7 +274,9 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
         observation_space (spaces.Dict): The observation space.
         action_space (spaces.Discrete): The action space.
         lr_schedule (Callable[[float], float]): Learning rate schedule.
-        embed_dim (int): Dimension of the node embedding space.
+        node_dim (int): Dimension of the node feature space.
+        edge_dim (int): Dimension of the edge feature space.
+        embed_dim (int): Dimension of the embedding space.
         output_type (str): Network type to use for the action output
             (options: "fixed", "proto").
         pooling_type (str): Pooling type to use for graph embedding computation
@@ -290,6 +294,8 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
         observation_space: spaces.Dict,
         action_space: spaces.Discrete,
         lr_schedule: Callable[[float], float],
+        node_dim: int,
+        edge_dim: int,
         embed_dim: int = 64,
         output_type: str = "proto",
         pooling_type: str = "max",
@@ -299,6 +305,8 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
         *args,
         **kwargs,
     ):
+        self.node_dim = node_dim
+        self.edge_dim = edge_dim
         self.embed_dim = embed_dim
         self.pooling_type = pooling_type
         self.distance_metric = distance_metric
@@ -307,7 +315,9 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
 
         kwargs.setdefault("features_extractor_class", MatrixObservationToGraph)
         features_extractor_kwargs = kwargs.setdefault("features_extractor_kwargs", {})
-        features_extractor_kwargs.update({"embed_dim": embed_dim})
+        features_extractor_kwargs.update(
+            {"node_dim": node_dim, "edge_dim": edge_dim, "embed_dim": embed_dim}
+        )
 
         super().__init__(
             observation_space,
@@ -338,6 +348,8 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
 
     def _build_mlp_extractor(self) -> None:
         self.mlp_extractor = GraphActorCriticProcessor(
+            node_dim=self.node_dim,
+            edge_dim=self.edge_dim,
             embed_dim=self.embed_dim,
             pooling_type=self.pooling_type,
             network_kwargs=self.network_kwargs,
@@ -349,6 +361,8 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
 
         data.update(
             dict(
+                node_dim=self.node_dim,
+                edge_dim=self.edge_dim,
                 embed_dim=self.embed_dim,
                 output_type=self.output_type,
                 pooling_type=self.pooling_type,
