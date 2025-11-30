@@ -317,7 +317,6 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
                 node_dim=self.node_dim,
                 edge_dim=self.edge_dim,
                 embed_dim=self.embed_dim,
-                output_type=self.output_type,
                 pooling_type=self.pooling_type,
                 distance_metric=self.distance_metric,
                 temp=self.temp,
