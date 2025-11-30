@@ -74,8 +74,8 @@ def main():
     config = {
         "seed": 42,
         "n_val_episodes": 20,
-        "val_freq": 500,
-        "num_envs": 4,
+        "val_freq": 1024,
+        "num_envs": 1,
         "policy_kwargs": {
             "pooling_type": "mean",
             "embed_dim": 128,
@@ -86,6 +86,7 @@ def main():
             "seed": 42,
             "learning_rate": 1e-5,
             "gamma": 1,
+            "n_steps": 1024,
         },
         "eval_seed": 1,
         "n_eval_episodes": 100,
