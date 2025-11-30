@@ -43,6 +43,7 @@ def train_ppo(
     # Train the model
     model.learn(
         total_timesteps=config["PPO"]["timesteps"],
+        progress_bar=True,
         callback=eval_callback,
     )
 
@@ -72,15 +73,18 @@ def main():
     config = {
         "seed": 42,
         "n_val_episodes": 20,
-        "val_freq": 100,
+        "val_freq": 500,
         "num_envs": 4,
         "policy_kwargs": {
             "pooling_type": "mean",
+            "embed_dim": 128,
             "network_kwargs": {"network": "GAT", "num_layers": 2},
         },
         "PPO": {
             "timesteps": 100000,
             "seed": 42,
+            "learning_rate": 1e-5,
+            "gamma": 1,
         },
         "eval_seed": 1,
         "n_eval_episodes": 100,

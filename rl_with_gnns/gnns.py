@@ -28,14 +28,21 @@ class GAT(nn.Module):
         self.conv1 = GATv2Conv(
             in_channels, out_channels, heads=heads, concat=True, edge_dim=edge_dim
         )
+        self.conv2 = GATv2Conv(
+            out_channels * heads,
+            out_channels,
+            heads=1,
+            concat=False,
+            edge_dim=edge_dim,
+        )
         self.layers = nn.ModuleList()
-        for _ in range(num_layers - 1):
+        self.layers.append(self.conv2)
+        for _ in range(num_layers - 2):
             self.layers.append(
                 GATv2Conv(
-                    out_channels * heads,
+                    out_channels,
                     out_channels,
                     heads=1,
-                    concat=False,
                     edge_dim=edge_dim,
                 )
             )
