@@ -33,35 +33,9 @@ def matrix_features_to_batch(
             x=node_features_b,
             edge_index=edge_index,
             edge_attr=edge_attr,
-            graph_attr=graph_features[b].unsqueeze(0),
         )
         data_list.append(data)
     return Batch.from_data_list(data_list)
-
-
-def unpad_array(array: np.ndarray) -> np.ndarray:
-    """Removes trailing zeros from a square 2D array.
-
-    Args:
-        array (np.ndarray): The input array to unpad.
-
-    Returns:
-        np.ndarray: The unpadded array.
-    """
-    if array.ndim != 2:
-        raise ValueError("Input must be a 2D array")
-
-    non_zero_rows = np.where(np.any(array != 0, axis=1))[0]
-    non_zero_cols = np.where(np.any(array != 0, axis=0))[0]
-
-    if len(non_zero_rows) == 0 or len(non_zero_cols) == 0:
-        return np.zeros((1, 1), dtype=array.dtype)
-
-    last_row = non_zero_rows.max() + 1
-    last_col = non_zero_cols.max() + 1
-    max_dim = max(last_row, last_col)
-
-    return array[:max_dim, :max_dim]
 
 
 def get_clean_kwargs(function, warn: bool, kwargs: dict) -> dict:

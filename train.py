@@ -28,7 +28,6 @@ def train_ppo(
         train_env,
         **ppo_kwargs,
         policy_kwargs=config["policy_kwargs"],
-        tensorboard_log=f"runs/{run_id}",
     )
 
     # Evaluate the model periodically during training and save the best model
@@ -44,7 +43,6 @@ def train_ppo(
     # Train the model
     model.learn(
         total_timesteps=config["PPO"]["timesteps"],
-        progress_bar=True,
         callback=eval_callback,
     )
 
@@ -77,9 +75,8 @@ def main():
         "val_freq": 100,
         "num_envs": 4,
         "policy_kwargs": {
-            "network": "GAT",
-            "num_layers": 2,
-            "aggr": "mean",
+            "pooling_type": "mean",
+            "network_kwargs": {"network": "GAT", "num_layers": 2},
         },
         "PPO": {
             "timesteps": 100000,
@@ -109,8 +106,12 @@ def main():
     print("Constructing test env")
     test_env = VecMonitor(DummyVecEnv([make_env("test", config["eval_seed"])]))
 
-    config["policy_kwargs"]["node_dim"] = train_env.observation_space["node_features"].shape[1]
-    config["policy_kwargs"]["edge_dim"] = train_env.observation_space["edge_features"].
+    config["policy_kwargs"]["node_dim"] = train_env.observation_space[
+        "node_features"
+    ].shape[1]
+    config["policy_kwargs"]["edge_dim"] = train_env.observation_space[
+        "edge_features"
+    ].shape[2]
 
     print("Starting PPO training...")
     # Train the policy using PPO

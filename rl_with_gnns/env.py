@@ -2,6 +2,7 @@ import gymnasium as gym
 import numpy as np
 from torch_geometric.data import Data
 from torch_geometric.utils import to_dense_adj
+import torch as th
 
 
 class TSPEnv(gym.Env):
@@ -54,7 +55,7 @@ class TSPEnv(gym.Env):
             }
         )
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
         self.graph = self.graphs[self.current_graph_index]
         self.current_graph_index += 1
         if self.current_graph_index >= len(self.graphs):
@@ -63,7 +64,7 @@ class TSPEnv(gym.Env):
 
         self.in_tour = np.zeros(self.max_nodes, dtype=np.float32)
         self.prev_node = None
-        self.next_nodes = np.arange(self.graph.num_nodes)
+        self.next_nodes = np.arange(self.max_nodes)
 
         return self._get_observation(), {}
 
@@ -89,10 +90,8 @@ class TSPEnv(gym.Env):
             reward = -self._compute_tour_length()
         return self._get_observation(), reward, done, False, {}
 
-    def action_masks(self, action):
-        return (self.in_tour[action] == 0) and (
-            np.arange(self.max_nodes) < self.graph.num_nodes
-        )
+    def action_masks(self):
+        return (self.in_tour == 0) & (np.arange(self.max_nodes) < self.graph.num_nodes)
 
     def _sample_graph(self):
         size = self.graph_rng.choice(self.graph_sizes)
@@ -101,8 +100,12 @@ class TSPEnv(gym.Env):
         edge_index = np.array(np.meshgrid(np.arange(size), np.arange(size))).reshape(
             2, -1
         )
-        edge_attr = distances[edge_index[0], edge_index[1]].reshape(-1, 1)
-        return Data(edge_index=edge_index, edge_attr=edge_attr, num_nodes=size)
+        edge_attr = distances[edge_index[0], edge_index[1]]
+        return Data(
+            edge_index=th.tensor(edge_index),
+            edge_attr=th.tensor(edge_attr, dtype=th.float32),
+            num_nodes=size,
+        )
 
     def _generate_graph_set(self):
         graphs = []
@@ -112,7 +115,7 @@ class TSPEnv(gym.Env):
 
     def _get_observation(self):
         node_features = np.zeros((self.max_nodes, 2), dtype=np.float32)
-        node_features[: self.graph.num_nodes, 0] = self.in_tour
+        node_features[: self.graph.num_nodes, 0] = self.in_tour[: self.graph.num_nodes]
         if self.prev_node is not None:
             node_features[self.prev_node, 1] = 1.0
 
@@ -126,7 +129,7 @@ class TSPEnv(gym.Env):
             .squeeze(0)
             .numpy()
         )
-        edge_features[: self.graph.num_nodes, : self.graph.num_nodes, 0] = distances
+        edge_features[:, :, 0] = distances
         for i in range(self.graph.num_nodes):
             next_node = self.next_nodes[i]
             edge_features[i, next_node, 1] = 1.0

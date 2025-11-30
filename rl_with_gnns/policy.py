@@ -36,7 +36,7 @@ class MatrixObservationToGraph(BaseFeaturesExtractor):
         """Convert the observations to a graph Batch object."""
         node_features = observations["node_features"]
         edge_features = observations["edge_features"]
-        adj_matrix = observations["adj"]
+        adj_matrix = observations["adjacency_matrix"]
 
         batch = matrix_features_to_batch(node_features, edge_features, adj_matrix)
         return batch
@@ -71,7 +71,7 @@ class GraphActorCriticProcessor(nn.Module):
         super().__init__()
         # IMPORTANT:
         # Save output dimensions, used to create the distributions
-        self.latent_dim_vf = node_dim
+        self.latent_dim_vf = embed_dim
         self.latent_dim_pi = 0  # unused
         self.embed_dim = embed_dim
         self.pooling_type = pooling_type
@@ -141,35 +141,6 @@ class GraphActorCriticProcessor(nn.Module):
     def forward_actor(self, x: Batch) -> Batch:
         """Forward pass of the actor network."""
         return self.forward(x)[0]
-
-
-class FixedActionNetwork(nn.Module):
-    """
-    Action network that maps a graph feature to a fixed-size action space.
-    """
-
-    def __init__(
-        self,
-        embed_dim: int,
-        action_dim: int,
-        mlp_layers: int = 2,
-    ):
-        super().__init__()
-        self.embed_dim = embed_dim
-        _mlp_layers = [nn.Linear(self.embed_dim, self.embed_dim), nn.ReLU()] * (
-            mlp_layers - 1
-        )
-        output_layer = nn.Linear(self.embed_dim, action_dim)
-        self.mlp = nn.Sequential(*_mlp_layers, output_layer)
-
-    def forward(self, batch: Batch) -> th.Tensor:
-        """Forward pass of the action network.
-        This method processes the graph features and returns action logits.
-        """
-
-        graph_embedding = batch.graph_attr
-        action_logits = self.mlp(graph_embedding)
-        return action_logits
 
 
 class ProtoActionNetwork(nn.Module):
@@ -277,8 +248,6 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
         node_dim (int): Dimension of the node feature space.
         edge_dim (int): Dimension of the edge feature space.
         embed_dim (int): Dimension of the embedding space.
-        output_type (str): Network type to use for the action output
-            (options: "fixed", "proto").
         pooling_type (str): Pooling type to use for graph embedding computation
             (options: "max", "mean", "sum").
         distance_metric (str): Distance metric to use for similarity computation
@@ -297,7 +266,6 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
         node_dim: int,
         edge_dim: int,
         embed_dim: int = 64,
-        output_type: str = "proto",
         pooling_type: str = "max",
         distance_metric: str = "euclidean",
         temp: float = 1.0,
@@ -314,10 +282,6 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
         self.network_kwargs = network_kwargs
 
         kwargs.setdefault("features_extractor_class", MatrixObservationToGraph)
-        features_extractor_kwargs = kwargs.setdefault("features_extractor_kwargs", {})
-        features_extractor_kwargs.update(
-            {"node_dim": node_dim, "edge_dim": edge_dim, "embed_dim": embed_dim}
-        )
 
         super().__init__(
             observation_space,
@@ -328,23 +292,13 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
             **kwargs,
         )
 
-        if output_type == "fixed":
-            # override action net to use fixed mapping
-            self.action_net = FixedActionNetwork(
-                embed_dim=self.embed_dim,
-                action_dim=self.action_space.n,
-            )
-        elif output_type == "proto":
-            # override action net to use proto-action method
-            self.action_net = ProtoActionNetwork(
-                embed_dim=self.embed_dim,
-                max_nodes=self.action_space.n,
-                distance_metric=self.distance_metric,
-                temp=self.temp,
-            )
-        else:
-            raise ValueError(f"Unknown output type {output_type}")
-        self.output_type = output_type
+        # override default SB3 action net to use proto-action method
+        self.action_net = ProtoActionNetwork(
+            embed_dim=self.embed_dim,
+            max_nodes=self.action_space.n,
+            distance_metric=self.distance_metric,
+            temp=self.temp,
+        )
 
     def _build_mlp_extractor(self) -> None:
         self.mlp_extractor = GraphActorCriticProcessor(
@@ -353,7 +307,6 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
             embed_dim=self.embed_dim,
             pooling_type=self.pooling_type,
             network_kwargs=self.network_kwargs,
-            **self.extractor_args,
         )
 
     def _get_constructor_parameters(self) -> dict[str, Any]:
