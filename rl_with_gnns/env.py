@@ -24,7 +24,7 @@ class TSPEnv(gym.Env):
             self.graph_sizes = [15]
         else:
             self.num_graphs = 100
-            self.graph_sizes = [15]
+            self.graph_sizes = [20]
 
         self.max_nodes = max(self.graph_sizes)
         self.graphs = self._generate_graph_set()
@@ -183,7 +183,7 @@ class MVCEnv(gym.Env):
             self.graph_sizes = [15]
         else:
             self.num_graphs = 100
-            self.graph_sizes = [15]
+            self.graph_sizes = [20]
 
         self.max_nodes = max(self.graph_sizes)
         self.graphs = self._generate_graph_set()
