@@ -8,4 +8,7 @@ dependencies = [
 	"networkx",
     "gymnasium",
     "sb3_contrib",
+	"tqdm",
+	"rich",
+	"tensorboard",
 ]

@@ -28,6 +28,7 @@ def train_ppo(
         train_env,
         **ppo_kwargs,
         policy_kwargs=config["policy_kwargs"],
+        tensorboard_log=f"runs/{run_id}",
     )
 
     # Evaluate the model periodically during training and save the best model
