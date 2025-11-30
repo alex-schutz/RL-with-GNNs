@@ -78,7 +78,7 @@ def main():
         "policy_kwargs": {
             "pooling_type": "mean",
             "embed_dim": 128,
-            "network_kwargs": {"network": "GAT", "num_layers": 2},
+            "network_kwargs": {"network": "GraphSAGE", "num_layers": 2},
         },
         "PPO": {
             "timesteps": 100000,
@@ -97,7 +97,7 @@ def main():
 
     def make_env(split, idx):
         def _init():
-            return gym.make("TSPEnv-v0", split=split, seed=config["seed"] + idx)
+            return gym.make("MVCEnv-v0", split=split, seed=config["seed"] + idx)
 
         return _init
 
