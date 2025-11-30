@@ -12,8 +12,8 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 from typing import Callable, Any
 
-from gnns import get_network_class
-from util import matrix_features_to_batch
+from rl_with_gnns.gnns import get_network_class
+from rl_with_gnns.util import matrix_features_to_batch
 
 
 class MatrixObservationToGraph(BaseFeaturesExtractor):

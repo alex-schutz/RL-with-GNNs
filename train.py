@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import numpy as np
 import torch as th
 import time
@@ -10,8 +9,8 @@ from sb3_contrib.common.maskable.callbacks import MaskableEvalCallback
 from sb3_contrib.common.maskable.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecEnv
 
-from policy import MaskableGraphActorCriticPolicy
-from util import get_clean_kwargs, change_obs_action_space
+from rl_with_gnns.policy import MaskableGraphActorCriticPolicy
+from rl_with_gnns.util import get_clean_kwargs, change_obs_action_space
 
 
 def train_ppo(
@@ -109,6 +108,9 @@ def main():
     val_env = VecMonitor(DummyVecEnv([make_env("val", i) for i in range(num_envs)]))
     print("Constructing test env")
     test_env = VecMonitor(DummyVecEnv([make_env("test", config["eval_seed"])]))
+
+    config["policy_kwargs"]["node_dim"] = train_env.observation_space["node_features"].shape[1]
+    config["policy_kwargs"]["edge_dim"] = train_env.observation_space["edge_features"].
 
     print("Starting PPO training...")
     # Train the policy using PPO
