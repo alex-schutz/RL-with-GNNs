@@ -35,8 +35,8 @@ def train_ppo(
     # Evaluate the model periodically during training and save the best model
     eval_callback = MaskableEvalCallback(
         eval_env=val_env,
-        n_eval_episodes=config["n_eval_episodes"],
-        eval_freq=max(config["eval_freq"] // train_env.num_envs, 1),
+        n_eval_episodes=config["n_val_episodes"],
+        eval_freq=max(config["val_freq"] // train_env.num_envs, 1),
         best_model_save_path=f"models/{run_id}",
         deterministic=True,
         render=False,
@@ -74,9 +74,8 @@ def train_ppo(
 def main():
     config = {
         "seed": 42,
-        "env_name": "GraphEnv-v0",
-        "n_eval_episodes": 10,
-        "eval_freq": 10000,
+        "n_val_episodes": 20,
+        "val_freq": 100,
         "num_envs": 4,
         "policy_kwargs": {
             "network": "GAT",
@@ -85,9 +84,10 @@ def main():
         },
         "PPO": {
             "timesteps": 100000,
-            "eval_freq": 10000,
             "seed": 42,
         },
+        "eval_seed": 1,
+        "n_eval_episodes": 100,
     }
 
     run_id = int(time.time())
@@ -97,7 +97,7 @@ def main():
 
     def make_env(split, idx):
         def _init():
-            return gym.make(config["env_name"], split=split, seed=config["seed"] + idx)
+            return gym.make("TSPEnv-v0", split=split, seed=config["seed"] + idx)
 
         return _init
 
@@ -108,7 +108,7 @@ def main():
     print("Constructing val env")
     val_env = VecMonitor(DummyVecEnv([make_env("val", i) for i in range(num_envs)]))
     print("Constructing test env")
-    test_env = VecMonitor(DummyVecEnv([make_env("test", i) for i in range(num_envs)]))
+    test_env = VecMonitor(DummyVecEnv([make_env("test", config["eval_seed"])]))
 
     print("Starting PPO training...")
     # Train the policy using PPO
