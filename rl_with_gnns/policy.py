@@ -46,6 +46,7 @@ class GraphActorCriticProcessor(nn.Module):
     """
     Custom network for policy and value function.
     It receives as input the features extracted by the features extractor.
+    It outputs a processed graph batch for the actor and a graph embedding for the critic.
 
     Args:
         node_dim (int): Dimension of the node feature space.
@@ -69,10 +70,12 @@ class GraphActorCriticProcessor(nn.Module):
             raise ValueError(f"Unknown pooling type {pooling_type}")
 
         super().__init__()
-        # IMPORTANT:
-        # Save output dimensions, used to create the distributions
+        # Save output dimensions
+        # This will be used by the MaskableActorCriticPolicy to create
+        # the value network (the actor network will be overriden)
         self.latent_dim_vf = embed_dim
         self.latent_dim_pi = 0  # unused
+
         self.embed_dim = embed_dim
         self.pooling_type = pooling_type
 
@@ -81,6 +84,7 @@ class GraphActorCriticProcessor(nn.Module):
 
         processor_class = get_network_class(network_kwargs["network"])
 
+        # Create the graph processor
         self.processor = processor_class(
             in_channels=node_dim,
             out_channels=embed_dim,
@@ -88,10 +92,7 @@ class GraphActorCriticProcessor(nn.Module):
             **network_kwargs,
         )
 
-    def _process_graph(
-        self,
-        batch: Batch,
-    ) -> tuple[th.Tensor, th.Tensor]:
+    def _process_graph(self, batch: Batch) -> tuple[th.Tensor, th.Tensor]:
         """Process the graph with the graph network"""
 
         # Process the graph with the graph network
@@ -102,6 +103,7 @@ class GraphActorCriticProcessor(nn.Module):
             batch=batch.batch,
         )
 
+        # Compute the graph embedding via pooling
         if self.pooling_type == "max":
             graph_embedding = global_max_pool(node_embedding, batch.batch)
         elif self.pooling_type == "mean":
@@ -109,6 +111,7 @@ class GraphActorCriticProcessor(nn.Module):
         elif self.pooling_type == "sum":
             graph_embedding = global_add_pool(node_embedding, batch.batch)
 
+        # Return node and graph embeddings
         return node_embedding, graph_embedding
 
     def forward(self, batch: Batch) -> tuple[Batch, th.Tensor]:
@@ -124,11 +127,11 @@ class GraphActorCriticProcessor(nn.Module):
         # Process the graph
         node_embedding, graph_embedding = self._process_graph(batch)
 
-        # Prepare the processed batch
+        # Turn the processed embeddings back into a Batch object
         processed_batch = Batch(
             x=node_embedding,
             edge_index=batch.edge_index,
-            graph_attr=graph_embedding,
+            graph_attr=graph_embedding,  # store graph embedding in graph_attr
             batch=batch.batch,
         )
 
@@ -145,7 +148,8 @@ class GraphActorCriticProcessor(nn.Module):
 
 class ProtoActionNetwork(nn.Module):
     """
-    Action network that uses similarity-based matching to select a node.
+    Action network that predicts a proto-action from the graph embedding and
+    uses similarity-based matching to select a node.
 
     Args:
         embed_dim (int): Dimension of the embedding space.
@@ -164,13 +168,17 @@ class ProtoActionNetwork(nn.Module):
         action_predictor_layers: int = 2,
         temp: float = 1.0,
     ):
+        if distance_metric not in ["euclidean", "cosine"]:
+            raise ValueError(f"Unknown distance metric {distance_metric}")
+
         super().__init__()
         self.embed_dim = embed_dim
         self.max_nodes = max_nodes
         self.distance_metric = distance_metric
         self.softmax_temp = nn.Parameter(th.tensor(temp), requires_grad=True)
 
-        # Action predictor network
+        # Define the action predictor network
+        # Input will be the graph embedding, output will be the proto-action
         self.action_predictor = nn.Sequential(
             *(
                 [nn.Linear(self.embed_dim, self.embed_dim)]
@@ -179,15 +187,14 @@ class ProtoActionNetwork(nn.Module):
             )
         )
 
-        if self.distance_metric not in ["euclidean", "cosine"]:
-            raise ValueError(f"Unknown distance metric {self.distance_metric}")
+    def compute_embedding_similarities(self, embedded_acts, proto_action):
+        """Compute similarities between the embedded actions and the proto-action."""
 
-    def compute_embedding_similarities(self, embedded_acts, pn_output):
         if self.distance_metric == "euclidean":
-            similarities = -th.cdist(embedded_acts, pn_output, p=2).squeeze(-1)
+            similarities = -th.cdist(embedded_acts, proto_action, p=2).squeeze(-1)
 
         elif self.distance_metric == "cosine":
-            similarities = F.cosine_similarity(embedded_acts, pn_output, dim=-1)
+            similarities = F.cosine_similarity(embedded_acts, proto_action, dim=-1)
         else:
             raise ValueError(f"unknown distance metric {self.distance_metric}")
 
@@ -195,11 +202,14 @@ class ProtoActionNetwork(nn.Module):
 
     def forward(self, batch: Batch) -> th.Tensor:
         """Forward pass of the action network.
-        This method takes the concatenated features from the feature extractor and computes the similarities
-        between the graph embedding and the node embeddings.
+        This method uses the graph embedding to create a proto-action by passing it through an MLP.
+        Action logits are then computed as similarities between the proto-action and the node embeddings.
 
         Args:
-            batch (Batch): A batch of graph data.
+            batch (Batch): A batch of graph data. Required attributes are:
+                - x: Node embeddings (num_nodes, embed_dim)
+                - graph_attr: Graph embeddings (batch_size, embed_dim)
+                - batch: Batch vector mapping each node to its respective graph in the batch (num_nodes,)
 
         Returns:
             th.Tensor: (b, n) matrix of similarities between the graph embedding and the node embeddings,
@@ -209,8 +219,8 @@ class ProtoActionNetwork(nn.Module):
         node_embedding = batch.x
         graph_embedding = batch.graph_attr
 
-        # Create the proto-action
-        pn_output = self.action_predictor(graph_embedding)
+        # Create the proto-action from the graph embedding
+        proto_action = self.action_predictor(graph_embedding)
 
         # Compute similarities between the graph embedding and the node embeddings per batch
         similarities = th.zeros_like(batch.batch, dtype=th.float32)
@@ -218,19 +228,20 @@ class ProtoActionNetwork(nn.Module):
         for batch_id in unique_batches:
             batch_mask = batch.batch == batch_id
             batch_embeddings = node_embedding[batch_mask]
-            batch_target = pn_output[batch_id].unsqueeze(0)  # Target for this batch
+            batch_target = proto_action[batch_id].unsqueeze(0)  # Target for this batch
             batch_similarities = self.compute_embedding_similarities(
                 batch_embeddings, batch_target
             )
             similarities[batch_mask] = batch_similarities
 
+        # Scale similarities by temperature
         similarities = similarities / self.softmax_temp
 
         # Reshape similarities along the batch dimension
         similarities = to_dense_batch(
             similarities.unsqueeze(-1),
             batch.batch,
-            fill_value=-1e9,
+            fill_value=-1e9,  # large negative value for padding
             max_num_nodes=self.max_nodes,
         )[0]
 
@@ -300,6 +311,7 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
             temp=self.temp,
         )
 
+    # Override the mlp extractor to use our graph processor
     def _build_mlp_extractor(self) -> None:
         self.mlp_extractor = GraphActorCriticProcessor(
             node_dim=self.node_dim,
@@ -309,6 +321,7 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
             network_kwargs=self.network_kwargs,
         )
 
+    # Override to save custom parameters
     def _get_constructor_parameters(self) -> dict[str, Any]:
         data = super()._get_constructor_parameters()
 
