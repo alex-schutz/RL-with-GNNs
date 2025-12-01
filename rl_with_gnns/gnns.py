@@ -21,22 +21,12 @@ class GCN(nn.Module):
 
 
 class GAT(nn.Module):
-    def __init__(
-        self, in_dim, embed_dim, edge_dim=None, heads=2, num_layers=2, **kwargs
-    ):
+    def __init__(self, in_dim, embed_dim, edge_dim=None, num_layers=2, **kwargs):
         super().__init__()
-        self.conv1 = GATv2Conv(
-            in_dim, embed_dim, heads=heads, concat=True, edge_dim=edge_dim
-        )
-        self.conv2 = GATv2Conv(
-            embed_dim * heads, embed_dim, heads=1, concat=False, edge_dim=edge_dim
-        )
+        self.conv1 = GATv2Conv(in_dim, embed_dim, edge_dim=edge_dim)
         self.layers = nn.ModuleList()
-        self.layers.append(self.conv2)
-        for _ in range(num_layers - 2):
-            self.layers.append(
-                GATv2Conv(embed_dim, embed_dim, heads=1, edge_dim=edge_dim)
-            )
+        for _ in range(num_layers - 1):
+            self.layers.append(GATv2Conv(embed_dim, embed_dim, edge_dim=edge_dim))
 
     def forward(self, node_fts, edge_index, edge_attr=None, **kwargs):
         x = self.conv1(node_fts, edge_index, edge_attr=edge_attr)
