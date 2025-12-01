@@ -4,14 +4,14 @@ from torch_geometric.nn import GCNConv, GATv2Conv, SAGEConv
 
 
 class GCN(nn.Module):
-    def __init__(self, in_channels, out_channels, num_layers=2, **kwargs):
+    def __init__(self, in_dim, embed_dim, num_layers=2, **kwargs):
         super().__init__()
-        self.conv1 = GCNConv(in_channels, out_channels)
+        self.conv1 = GCNConv(in_dim, embed_dim)
         self.layers = nn.ModuleList()
         for _ in range(num_layers - 1):
-            self.layers.append(GCNConv(out_channels, out_channels))
+            self.layers.append(GCNConv(embed_dim, embed_dim))
 
-    def forward(self, node_fts, edge_index, edge_attr=None, batch=None):
+    def forward(self, node_fts, edge_index, **kwargs):
         x = self.conv1(node_fts, edge_index)
         x = F.relu(x)
         for layer in self.layers:
@@ -22,32 +22,23 @@ class GCN(nn.Module):
 
 class GAT(nn.Module):
     def __init__(
-        self, in_channels, out_channels, edge_dim=None, heads=2, num_layers=2, **kwargs
+        self, in_dim, embed_dim, edge_dim=None, heads=2, num_layers=2, **kwargs
     ):
         super().__init__()
         self.conv1 = GATv2Conv(
-            in_channels, out_channels, heads=heads, concat=True, edge_dim=edge_dim
+            in_dim, embed_dim, heads=heads, concat=True, edge_dim=edge_dim
         )
         self.conv2 = GATv2Conv(
-            out_channels * heads,
-            out_channels,
-            heads=1,
-            concat=False,
-            edge_dim=edge_dim,
+            embed_dim * heads, embed_dim, heads=1, concat=False, edge_dim=edge_dim
         )
         self.layers = nn.ModuleList()
         self.layers.append(self.conv2)
         for _ in range(num_layers - 2):
             self.layers.append(
-                GATv2Conv(
-                    out_channels,
-                    out_channels,
-                    heads=1,
-                    edge_dim=edge_dim,
-                )
+                GATv2Conv(embed_dim, embed_dim, heads=1, edge_dim=edge_dim)
             )
 
-    def forward(self, node_fts, edge_index, edge_attr=None, batch=None):
+    def forward(self, node_fts, edge_index, edge_attr=None, **kwargs):
         x = self.conv1(node_fts, edge_index, edge_attr=edge_attr)
         x = F.relu(x)
         for layer in self.layers:
@@ -57,14 +48,14 @@ class GAT(nn.Module):
 
 
 class GraphSAGE(nn.Module):
-    def __init__(self, in_channels, out_channels, num_layers=2, **kwargs):
+    def __init__(self, in_dim, embed_dim, num_layers=2, **kwargs):
         super().__init__()
-        self.conv1 = SAGEConv(in_channels, out_channels)
+        self.conv1 = SAGEConv(in_dim, embed_dim)
         self.layers = nn.ModuleList()
         for _ in range(num_layers - 1):
-            self.layers.append(SAGEConv(out_channels, out_channels))
+            self.layers.append(SAGEConv(embed_dim, embed_dim))
 
-    def forward(self, node_fts, edge_index, edge_attr=None, batch=None):
+    def forward(self, node_fts, edge_index, **kwargs):
         x = self.conv1(node_fts, edge_index)
         x = F.relu(x)
         for layer in self.layers:
