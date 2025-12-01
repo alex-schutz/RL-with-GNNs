@@ -13,9 +13,7 @@ from rl_with_gnns.policy import MaskableGraphActorCriticPolicy
 from rl_with_gnns.util import get_clean_kwargs, change_obs_action_space
 
 
-def train_ppo(
-    train_env: VecEnv, val_env: VecEnv, test_env: VecEnv, config: dict, run_id: int
-):
+def train_ppo(train_env: VecEnv, val_env: VecEnv, config: dict, run_id: int):
     ppo_kwargs = get_clean_kwargs(
         MaskablePPO.__init__,
         warn=False,
@@ -48,6 +46,8 @@ def train_ppo(
         callback=eval_callback,
     )
 
+
+def evaluate(run_id, test_env: VecEnv, config: dict):
     # Load the best model
     model = MaskablePPO.load(f"models/{run_id}/best_model.zip")
 
@@ -79,7 +79,7 @@ def main():
         "policy_kwargs": {
             "pooling_type": "mean",
             "embed_dim": 128,
-            "network_kwargs": {"network": "GraphSAGE", "num_layers": 2},
+            "network_kwargs": {"network": "GAT", "num_layers": 2},
         },
         "PPO": {
             "timesteps": 100000,
@@ -112,6 +112,7 @@ def main():
     print("Constructing test env")
     test_env = VecMonitor(DummyVecEnv([make_env("test", config["eval_seed"])]))
 
+    # Update policy kwargs with environment dimensions
     config["policy_kwargs"]["node_dim"] = train_env.observation_space[
         "node_features"
     ].shape[1]
@@ -121,7 +122,10 @@ def main():
 
     print("Starting PPO training...")
     # Train the policy using PPO
-    train_ppo(train_env, val_env, test_env, config, run_id)
+    train_ppo(train_env, val_env, config, run_id)
+
+    print("Evaluating trained policy...")
+    evaluate(run_id, test_env, config)
 
 
 if __name__ == "__main__":
