@@ -72,6 +72,7 @@ def evaluate(run_id, test_env: VecEnv, config: dict):
 
 def main():
     config = {
+        "env": "MVCEnv-v0",
         "seed": 42,
         "n_val_episodes": 20,
         "val_freq": 1024,
@@ -99,7 +100,7 @@ def main():
 
     def make_env(split, idx):
         def _init():
-            return gym.make("MVCEnv-v0", split=split, seed=config["seed"] + idx)
+            return gym.make(config["env"], split=split, seed=config["seed"] + idx)
 
         return _init
 

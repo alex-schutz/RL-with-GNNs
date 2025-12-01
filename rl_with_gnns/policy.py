@@ -86,8 +86,8 @@ class GraphActorCriticProcessor(nn.Module):
 
         # Create the graph processor
         self.processor = processor_class(
-            in_channels=node_dim,
-            out_channels=embed_dim,
+            in_dim=node_dim,
+            embed_dim=embed_dim,
             edge_dim=edge_dim,
             **network_kwargs,
         )
