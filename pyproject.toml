@@ -1,0 +1,14 @@
+[project]
+name = "rl-with-gnns"
+version = "0.1"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "torch_geometric",
+    "numpy",
+	"networkx",
+    "gymnasium",
+    "sb3_contrib",
+	"tqdm",
+	"rich",
+	"tensorboard",
+]
