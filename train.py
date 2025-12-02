@@ -11,6 +11,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecEnv
 
 from rl_with_gnns.policy import MaskableGraphActorCriticPolicy
 from rl_with_gnns.util import get_clean_kwargs, change_obs_action_space
+from rl_with_gnns.env import VariableTimeLimit
 
 
 def train_ppo(train_env: VecEnv, val_env: VecEnv, config: dict, run_id: int):
@@ -37,6 +38,7 @@ def train_ppo(train_env: VecEnv, val_env: VecEnv, config: dict, run_id: int):
         best_model_save_path=f"models/{run_id}",
         deterministic=True,
         render=False,
+        use_masking=config["use_masking"],
     )
 
     # Train the model
@@ -44,6 +46,7 @@ def train_ppo(train_env: VecEnv, val_env: VecEnv, config: dict, run_id: int):
         total_timesteps=config["PPO"]["timesteps"],
         progress_bar=True,
         callback=eval_callback,
+        use_masking=config["use_masking"],
     )
 
 
@@ -61,7 +64,7 @@ def evaluate(run_id, test_env: VecEnv, config: dict):
         n_eval_episodes=config["n_eval_episodes"],
         deterministic=True,
         render=False,
-        use_masking=True,
+        use_masking=config["use_masking"],
         return_episode_rewards=True,
     )
 
@@ -91,6 +94,7 @@ def main():
         },
         "eval_seed": 1,
         "n_eval_episodes": 100,
+        "use_masking": True,
     }
 
     run_id = int(time.time())
@@ -100,7 +104,10 @@ def main():
 
     def make_env(split, idx):
         def _init():
-            return gym.make(config["env"], split=split, seed=config["seed"] + idx)
+            e = gym.make(config["env"], split=split, seed=config["seed"] + idx)
+            if not config["use_masking"]:
+                e = VariableTimeLimit(e)
+            return e
 
         return _init
 

@@ -4,6 +4,31 @@ from torch_geometric.data import Data
 from torch_geometric.utils import to_dense_adj
 import torch as th
 import networkx as nx
+from gymnasium import Wrapper
+
+
+class VariableTimeLimit(Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.max_steps = None
+        self.elapsed_steps = 0
+
+    def reset(self, **kwargs):
+        obs = self.env.reset(**kwargs)
+
+        self.max_steps = self.env.unwrapped.graph.num_nodes
+        self.elapsed_steps = 0
+        return obs
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        self.elapsed_steps += 1
+
+        if self.elapsed_steps >= self.max_steps:
+            truncated = True
+            info["TimeLimit.truncated"] = True
+
+        return obs, reward, terminated, truncated, info
 
 
 class TSPEnv(gym.Env):
