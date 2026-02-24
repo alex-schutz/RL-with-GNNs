@@ -1,6 +1,6 @@
 # Reinforcement Learning using Graph Neural Networks
 
-This repository contains an introduction to using Graph Neural Networks (GNNs) in Reinforcement Learning (RL) architectures. 
+This is the companion repository to the [blogpost](https://iclr-blogposts.github.io/2026/blog/2026/rl-with-gnns/) containing an introduction to using Graph Neural Networks (GNNs) in Reinforcement Learning (RL) architectures. 
 We provide an implementation of a custom PPO policy, compatible with the Stable Baselines3 library, based on graph neural networks implemented using PyTorch Geometric.
 
 ## Installation
