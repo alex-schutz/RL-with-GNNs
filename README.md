@@ -3,6 +3,18 @@
 This is the companion repository to the [blogpost](https://iclr-blogposts.github.io/2026/blog/2026/rl-with-gnns/) containing an introduction to using Graph Neural Networks (GNNs) in Reinforcement Learning (RL) architectures. 
 We provide an implementation of a custom PPO policy, compatible with the Stable Baselines3 library, based on graph neural networks implemented using PyTorch Geometric.
 
+If you use this code, please consider citing our blogpost:
+
+```
+@inproceedings{schutz2026rlwithgnns,
+  title={Using Graph Neural Networks in Reinforcement Learning: A Practical Guide},
+  author={Schutz, Alex and Darvariu, Victor-Alexandru},
+  booktitle = {International Conference on Learning Representations (ICLR) 2026 Blogpost Track},
+  year={2026},
+  url = {https://iclr-blogposts.github.io/2026/blog/2026/rl-with-gnns/}
+}
+```
+
 ## Installation
 To install the required dependencies, run:
 ```bash
