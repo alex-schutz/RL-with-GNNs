@@ -35,7 +35,7 @@ class MatrixObservationToGraph(BaseFeaturesExtractor):
     def forward(self, observations) -> Batch:
         """Convert the observations to a graph Batch object."""
         node_features = observations["node_features"]
-        edge_features = observations["edge_features"]
+        edge_features = observations.get("edge_features", None)
         adj_matrix = observations["adjacency_matrix"]
 
         batch = matrix_features_to_batch(node_features, edge_features, adj_matrix)
@@ -275,7 +275,7 @@ class MaskableGraphActorCriticPolicy(MaskableActorCriticPolicy):
         action_space: spaces.Discrete,
         lr_schedule: Callable[[float], float],
         node_dim: int,
-        edge_dim: int,
+        edge_dim: int = 0,
         embed_dim: int = 64,
         pooling_type: str = "max",
         distance_metric: str = "euclidean",

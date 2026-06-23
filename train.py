@@ -12,6 +12,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecEnv
 from rl_with_gnns.policy import MaskableGraphActorCriticPolicy
 from rl_with_gnns.util import get_clean_kwargs, change_obs_action_space
 from rl_with_gnns.env import VariableTimeLimit
+import argparse
 
 
 def train_ppo(train_env: VecEnv, val_env: VecEnv, config: dict, run_id: int):
@@ -73,6 +74,27 @@ def evaluate(run_id, test_env: VecEnv, config: dict):
     print(f"Mean Episode Length: {np.mean(ep_lengths)} +/- {np.std(ep_lengths)}")
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Train and evaluate PPO with GNN policy."
+    )
+    parser.add_argument(
+        "--seed", type=int, default=42, help="Random seed for reproducibility."
+    )
+    parser.add_argument(
+        "--architecture",
+        type=str,
+        default="GAT",
+        help="Type of GNN architecture to use.",
+    )
+    parser.add_argument(
+        "--penalty",
+        action="store_true",
+        help="Use penalties instead of action masking.",
+    )
+    return parser.parse_args()
+
+
 def main():
     config = {
         "env": "MVCEnv-v0",
@@ -96,6 +118,12 @@ def main():
         "n_eval_episodes": 100,
         "use_masking": True,
     }
+
+    args = parse_args()
+    config["seed"] = args.seed
+    config["PPO"]["seed"] = args.seed
+    config["policy_kwargs"]["network_kwargs"]["network"] = args.architecture
+    config["use_masking"] = not args.penalty
 
     run_id = int(time.time())
 
@@ -124,9 +152,10 @@ def main():
     config["policy_kwargs"]["node_dim"] = train_env.observation_space[
         "node_features"
     ].shape[1]
-    config["policy_kwargs"]["edge_dim"] = train_env.observation_space[
-        "edge_features"
-    ].shape[2]
+    if "edge_features" in train_env.observation_space.spaces:
+        config["policy_kwargs"]["edge_dim"] = train_env.observation_space[
+            "edge_features"
+        ].shape[2]
 
     print("Starting PPO training...")
     # Train the policy using PPO
