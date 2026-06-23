@@ -152,9 +152,10 @@ def main():
     config["policy_kwargs"]["node_dim"] = train_env.observation_space[
         "node_features"
     ].shape[1]
-    config["policy_kwargs"]["edge_dim"] = train_env.observation_space[
-        "edge_features"
-    ].shape[2]
+    if "edge_features" in train_env.observation_space.spaces:
+        config["policy_kwargs"]["edge_dim"] = train_env.observation_space[
+            "edge_features"
+        ].shape[2]
 
     print("Starting PPO training...")
     # Train the policy using PPO

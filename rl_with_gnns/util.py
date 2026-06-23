@@ -9,7 +9,7 @@ from sb3_contrib.common.maskable.policies import MaskableActorCriticPolicy
 
 def matrix_features_to_batch(
     node_features: th.Tensor,
-    edge_features: th.Tensor,
+    edge_features: th.Tensor | None,
     adj_matrix: th.Tensor,
 ) -> Batch:
     """Convert the matrix features to a PyTorch Geometric Batch object.
@@ -26,7 +26,11 @@ def matrix_features_to_batch(
     data_list = []
     for b in range(node_features.size(0)):
         edge_index = th.nonzero(adj_matrix[b], as_tuple=False).t()
-        edge_attr = edge_features[b][edge_index[0], edge_index[1]]
+        edge_attr = (
+            edge_features[b][edge_index[0], edge_index[1]]
+            if edge_features is not None
+            else None
+        )
         has_edge = (adj_matrix[b].sum(dim=0) > 0) | (adj_matrix[b].sum(dim=1) > 0)
         node_features_b = node_features[b][has_edge]
         data = Data(
