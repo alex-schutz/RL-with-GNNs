@@ -72,3 +72,6 @@ Thumbs.db
 
 # dotenv / secrets
 .env
+data/
+models/
+runs/
